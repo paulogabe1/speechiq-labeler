@@ -108,16 +108,44 @@ export default function App() {
     audioRef.current.play()
   }
 
-  const submit = () => {
+  const saveCurrentLabel = (
+    newSpeed = speed,
+    newConfidence = confidence
+  ) => {
     if (!current) return
-    if (!speed || !confidence) return alert("Fill both labels")
 
-    const updated = {
-      ...labels,
-      [current.filename]: { speed, confidence }
+    const updated = { ...labels }
+
+    // completely empty -> remove entry
+    if (!newSpeed && !newConfidence) {
+      delete updated[current.filename]
+    } else {
+      updated[current.filename] = {
+        speed: newSpeed,
+        confidence: newConfidence
+      }
     }
 
     setLabels(updated)
+  }
+
+  const getLabelState = (file) => {
+    const label = labels[file.filename]
+
+    if (!label) return "empty"
+
+    const hasSpeed = !!label.speed
+    const hasConfidence = !!label.confidence
+
+    if (hasSpeed && hasConfidence) return "complete"
+
+    return "partial"
+  }
+
+  const submit = () => {
+    if (!speed || !confidence) {
+      alert("Warning: clip is incomplete")
+    }
 
     if (index < audioFiles.length - 1) {
       setIndex(index + 1)
@@ -175,7 +203,18 @@ export default function App() {
               onClick={() => jumpTo(i)}
               style={{
                 ...styles.navBtn,
-                background: i === index ? "#00d084" : "#333"
+
+                background:
+                  getLabelState(f) === "complete"
+                    ? "#00d084"
+                    : getLabelState(f) === "partial"
+                    ? "#e6b800"
+                    : "#333",
+
+                border:
+                  i === index
+                    ? "2px solid white"
+                    : "2px solid transparent"
               }}
               title={f.filename}
             >
@@ -221,7 +260,12 @@ export default function App() {
           {SPEED_OPTIONS.map(o => (
             <button
               key={o}
-              onClick={() => setSpeed(o)}
+              onClick={() => {
+                const newValue = speed === o ? "" : o
+
+                setSpeed(newValue)
+                saveCurrentLabel(newValue, confidence)
+              }}
               style={speed === o ? styles.active : styles.btn}
             >
               {o}
@@ -235,7 +279,12 @@ export default function App() {
           {CONF_OPTIONS.map(o => (
             <button
               key={o}
-              onClick={() => setConfidence(o)}
+              onClick={() => {
+                const newValue = confidence === o ? "" : o
+
+                setConfidence(newValue)
+                saveCurrentLabel(speed, newValue)
+              }}
               style={confidence === o ? styles.active : styles.btn}
             >
               {o}
