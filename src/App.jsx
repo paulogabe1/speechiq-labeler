@@ -242,7 +242,9 @@ export default function App() {
         {/* AUDIO */}
         {current && (
           <>
-            <h3>{current.filename}</h3>
+            <h3>
+              {current.original.replace(".flac", "")}
+            </h3>
 
             <audio
               ref={audioRef}
@@ -254,43 +256,53 @@ export default function App() {
           </>
         )}
 
-        {/* SPEED */}
-        <h4>Speed</h4>
-        <div style={styles.row}>
-          {SPEED_OPTIONS.map(o => (
-            <button
-              key={o}
-              onClick={() => {
-                const newValue = speed === o ? "" : o
+        <div style={styles.labelPanel}>
 
-                setSpeed(newValue)
-                saveCurrentLabel(newValue, confidence)
-              }}
-              style={speed === o ? styles.active : styles.btn}
-            >
-              {o}
-            </button>
-          ))}
+        {/* SPEED */}
+        <div style={styles.optionGroup}>
+          <h4>Speed</h4>
+
+          <div style={styles.row}>
+            {SPEED_OPTIONS.map(o => (
+              <button
+                key={o}
+                onClick={() => {
+                  const newValue = speed === o ? "" : o
+
+                  setSpeed(newValue)
+                  saveCurrentLabel(newValue, confidence)
+                }}
+                style={speed === o ? styles.active : styles.btn}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* CONFIDENCE */}
-        <h4>Confidence</h4>
-        <div style={styles.row}>
-          {CONF_OPTIONS.map(o => (
-            <button
-              key={o}
-              onClick={() => {
-                const newValue = confidence === o ? "" : o
+        <div style={styles.optionGroup}>
+          <h4>Confidence</h4>
 
-                setConfidence(newValue)
-                saveCurrentLabel(speed, newValue)
-              }}
-              style={confidence === o ? styles.active : styles.btn}
-            >
-              {o}
-            </button>
-          ))}
+          <div style={styles.row}>
+            {CONF_OPTIONS.map(o => (
+              <button
+                key={o}
+                onClick={() => {
+                  const newValue = confidence === o ? "" : o
+
+                  setConfidence(newValue)
+                  saveCurrentLabel(speed, newValue)
+                }}
+                style={confidence === o ? styles.active : styles.btn}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
         </div>
+
+      </div>
 
         {/* CONTROLS */}
         <div style={styles.controls}>
@@ -403,5 +415,19 @@ const styles = {
     border: "none",
     borderRadius: 6,
     color: "white"
-  }
+  },
+  labelPanel: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 20,
+    marginTop: 20,
+    marginBottom: 20
+  },
+
+  optionGroup: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center"
+  },
 }
