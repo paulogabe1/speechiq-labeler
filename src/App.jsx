@@ -4,6 +4,9 @@ const SPEED_OPTIONS = ["slow", "normal", "fast"]
 const CONF_OPTIONS = ["hesitant", "neutral", "confident"]
 
 export default function App() {
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [tempNickname, setTempNickname] = useState("")
+
   const audioRef = useRef(null)
 
   const API_URL = "https://speechiq-api.paulogabe1.workers.dev"
@@ -11,19 +14,8 @@ export default function App() {
   // =========================
   // USER (ONLY LOCAL STORAGE)
   // =========================
-  const [nickname] = useState(() => {
-    let n = localStorage.getItem("speechiq-nickname")
-
-    if (!n) {
-      n = prompt("Enter nickname")
-      n = (n || "").trim().toLowerCase()
-
-      if (!n) n = "anonymous"
-
-      localStorage.setItem("speechiq-nickname", n)
-    }
-
-    return n
+  const [nickname, setNickname] = useState(() => {
+    return localStorage.getItem("speechiq-nickname") || ""
   })
 
   // =========================
@@ -44,6 +36,12 @@ export default function App() {
   // =========================
   // LOAD MANIFEST
   // =========================
+  useEffect(() => {
+    if (!nickname) {
+      setShowUserModal(true)
+    }
+  }, [nickname])
+
   useEffect(() => {
     fetch("/manifest.json")
       .then(r => r.json())
@@ -107,6 +105,25 @@ export default function App() {
   // =========================
   // HELPERS
   // =========================
+  const confirmUser = () => {
+    const clean = tempNickname.trim().toLowerCase()
+
+    if (!clean) return
+
+    setNickname(clean)
+    localStorage.setItem("speechiq-nickname", clean)
+
+    setShowUserModal(false)
+  }
+
+  const cancelUserChange = () => {
+    // if no existing user → force input again
+    if (!nickname) return
+
+    setTempNickname("")
+    setShowUserModal(false)
+  }
+
   const isComplete = (file) => {
     if (!file) return false
     return completedFiles.has(file.original || file.filename)
@@ -197,16 +214,10 @@ export default function App() {
 
         <button
           onClick={() => {
-            localStorage.removeItem("speechiq-nickname")
-            window.location.reload()
+            setTempNickname(nickname)
+            setShowUserModal(true)
           }}
           style={styles.switchUser}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = "#3a3a3a")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = "#2a2a2a")
-          }
         >
           Switch User
         </button>
@@ -309,6 +320,40 @@ export default function App() {
         </div>
 
       </div>
+
+      {showUserModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+
+            <h3>Set User</h3>
+
+            <input
+              value={tempNickname}
+              onChange={(e) => setTempNickname(e.target.value)}
+              placeholder="Enter nickname"
+              style={styles.input}
+            />
+
+            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <button onClick={confirmUser} style={styles.primary}>
+                Confirm
+              </button>
+
+              <button onClick={cancelUserChange} style={styles.secondary}>
+                Cancel
+              </button>
+            </div>
+
+            {!nickname && (
+              <p style={{ color: "orange", marginTop: 10 }}>
+                You must enter a name to continue
+              </p>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -431,5 +476,37 @@ const styles = {
     cursor: "pointer",
     fontSize: 13,
     transition: "0.2s",
+  },
+
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    background: "rgba(0,0,0,0.7)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999
+  },
+
+  modalBox: {
+    width: 320,
+    background: "#1c1c1c",
+    padding: 20,
+    borderRadius: 10,
+    border: "1px solid #333",
+    textAlign: "center"
+  },
+
+  input: {
+    width: "100%",
+    padding: 10,
+    marginTop: 10,
+    background: "#111",
+    border: "1px solid #333",
+    color: "white",
+    borderRadius: 6
   }
 }
