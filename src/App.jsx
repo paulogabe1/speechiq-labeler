@@ -4,6 +4,20 @@ const SPEED_OPTIONS = ["slow", "normal", "fast"]
 const CONF_OPTIONS = ["hesitant", "neutral", "confident"]
 
 export default function App() {
+  const [nickname] = useState(() => {
+    let n = localStorage.getItem("speechiq-nickname")
+
+    if (!n) {
+      n = prompt("Enter nickname")
+      n = n.trim().toLowerCase()
+      localStorage.setItem("speechiq-nickname", n)
+    }
+
+    return n
+  })
+
+  const API_URL = "https://speechiq-api.paulogabe1.workers.dev"
+
   const audioRef = useRef(null)
 
   const [audioFiles, setAudioFiles] = useState([])
@@ -142,11 +156,36 @@ export default function App() {
     return "partial"
   }
 
-  const submit = () => {
+  const submit = async () => {
+
     if (!speed || !confidence) {
       alert("Warning: clip is incomplete")
     }
 
+    if (!current) return
+
+    // 1. Save locally (keep your system working offline)
+    saveCurrentLabel(speed, confidence)
+
+    try {
+      // 2. Send to backend
+      await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          nickname,
+          original_file: current.original || current.filename,
+          speed,
+          confidence
+        })
+      })
+    } catch (err) {
+      console.error("Backend save failed:", err)
+    }
+
+    // 3. Move to next clip
     if (index < audioFiles.length - 1) {
       setIndex(index + 1)
     }
