@@ -37,6 +37,7 @@ export default function App() {
 
   const [progress, setProgress] = useState(0)
   const [completedFiles, setCompletedFiles] = useState(new Set())
+  const [labelMap, setLabelMap] = useState({})
 
   const current = audioFiles[index]
 
@@ -72,9 +73,9 @@ export default function App() {
 
       setProgress(data.progress || 0)
 
-      setCompletedFiles(
-        new Set(data.completed_files || [])
-      )
+      setCompletedFiles(new Set(data.completed_files || []))
+
+      setLabelMap(data.labels || {})
 
     } catch (err) {
       console.error("state load failed:", err)
@@ -89,9 +90,19 @@ export default function App() {
   // RESET DRAFT WHEN CHANGING CLIP
   // =========================
   useEffect(() => {
-    setSpeed("")
-    setConfidence("")
-  }, [index])
+    if (!current) return
+
+    const key = current.original || current.filename
+    const existing = labelMap[key]
+
+    if (existing) {
+      setSpeed(existing.speed || "")
+      setConfidence(existing.confidence || "")
+    } else {
+      setSpeed("")
+      setConfidence("")
+    }
+  }, [index, current, labelMap])
 
   // =========================
   // HELPERS
