@@ -9,7 +9,7 @@ export default function App() {
   const API_URL = "https://speechiq-api.paulogabe1.workers.dev"
 
   // =========================
-  // USER (ONLY LOCAL STORAGE USED)
+  // USER (ONLY LOCAL STORAGE)
   // =========================
   const [nickname] = useState(() => {
     let n = localStorage.getItem("speechiq-nickname")
@@ -17,6 +17,9 @@ export default function App() {
     if (!n) {
       n = prompt("Enter nickname")
       n = (n || "").trim().toLowerCase()
+
+      if (!n) n = "anonymous"
+
       localStorage.setItem("speechiq-nickname", n)
     }
 
@@ -24,7 +27,7 @@ export default function App() {
   })
 
   // =========================
-  // DATA
+  // CORE STATE
   // =========================
   const [audioFiles, setAudioFiles] = useState([])
   const [index, setIndex] = useState(0)
@@ -42,12 +45,13 @@ export default function App() {
   // =========================
   useEffect(() => {
     fetch("/manifest.json")
-      .then(res => res.json())
-      .then(data => setAudioFiles(data))
+      .then(r => r.json())
+      .then(data => setAudioFiles(Array.isArray(data) ? data : []))
+      .catch(err => console.error("manifest load error:", err))
   }, [])
 
   // =========================
-  // LOAD USER STATE FROM DB
+  // LOAD DB STATE
   // =========================
   const loadState = async () => {
     if (!nickname) return
@@ -64,13 +68,16 @@ export default function App() {
 
       const data = await res.json()
 
-      if (!data.success) return
+      if (!data?.success) return
 
       setProgress(data.progress || 0)
-      setCompletedFiles(new Set(data.completed_files || []))
+
+      setCompletedFiles(
+        new Set(data.completed_files || [])
+      )
 
     } catch (err) {
-      console.error(err)
+      console.error("state load failed:", err)
     }
   }
 
@@ -79,26 +86,27 @@ export default function App() {
   }, [nickname])
 
   // =========================
-  // RESET DRAFT ON CLIP CHANGE
+  // RESET DRAFT WHEN CHANGING CLIP
   // =========================
   useEffect(() => {
     setSpeed("")
     setConfidence("")
-  }, [index, current])
+  }, [index])
 
   // =========================
   // HELPERS
   // =========================
   const isComplete = (file) => {
+    if (!file) return false
     return completedFiles.has(file.original || file.filename)
   }
 
-  const progressValue = audioFiles.length
+  const progressPercent = audioFiles.length
     ? (progress / audioFiles.length) * 100
     : 0
 
   // =========================
-  // ACTIONS
+  // AUDIO ACTIONS
   // =========================
   const replay = () => {
     if (!audioRef.current) return
@@ -106,11 +114,14 @@ export default function App() {
     audioRef.current.play()
   }
 
+  // =========================
+  // SUBMIT
+  // =========================
   const submit = async () => {
     if (!current) return
 
     if (!speed || !confidence) {
-      alert("Warning: clip is incomplete")
+      alert("Warning: incomplete label")
     }
 
     try {
@@ -128,19 +139,19 @@ export default function App() {
 
       const data = await res.json()
 
-      if (!data.success) {
-        console.error(data)
+      if (!data?.success) {
+        console.error("submit failed:", data)
         return
       }
 
       await loadState()
 
     } catch (err) {
-      console.error(err)
+      console.error("submit error:", err)
     }
 
     if (index < audioFiles.length - 1) {
-      setIndex(index + 1)
+      setIndex(i => i + 1)
     }
   }
 
@@ -151,17 +162,26 @@ export default function App() {
   }
 
   // =========================
-  // UI uses unchanged below
+  // SAFE UI GUARD (prevents blank screen)
   // =========================
+  if (!audioFiles.length) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <h2>Loading SpeechIQ...</h2>
+        </div>
+      </div>
+    )
+  }
+
   // =========================
-  // UI (UNCHANGED)
+  // UI
   // =========================
   return (
     <div style={styles.page}>
       <div style={styles.card}>
 
         <h2>SpeechIQ Labeler</h2>
-
         <p>User: {nickname}</p>
 
         <button
@@ -173,6 +193,7 @@ export default function App() {
           Switch User
         </button>
 
+        {/* NAV */}
         <div style={styles.navigator}>
           {audioFiles.map((f, i) => (
             <button
@@ -180,14 +201,8 @@ export default function App() {
               onClick={() => jumpTo(i)}
               style={{
                 ...styles.navBtn,
-                background:
-                  getLabelState(f) === "complete"
-                    ? "#00d084"
-                    : getLabelState(f) === "partial"
-                    ? "#e6b800"
-                    : "#333",
-                border:
-                  i === index ? "2px solid white" : "2px solid transparent"
+                background: isComplete(f) ? "#00d084" : "#333",
+                border: i === index ? "2px solid white" : "2px solid transparent"
               }}
             >
               {i + 1}
@@ -196,22 +211,24 @@ export default function App() {
         </div>
 
         <p>
-          Clip {index + 1} / {audioFiles.length || 0}
+          Clip {index + 1} / {audioFiles.length}
         </p>
 
+        {/* PROGRESS */}
         <div style={styles.barOuter}>
           <div
             style={{
               ...styles.barInner,
-              width: `${progressValue}%`
+              width: `${progressPercent}%`
             }}
           />
         </div>
 
+        {/* AUDIO */}
         {current && (
           <>
             <h3>
-              {current.original.replace(".flac", "")}
+              {(current.original || current.filename).replace(".flac", "")}
             </h3>
 
             <audio
@@ -224,19 +241,17 @@ export default function App() {
           </>
         )}
 
+        {/* SPEED */}
         <div style={styles.labelPanel}>
-
           <div style={styles.optionGroup}>
             <h4>Speed</h4>
             <div style={styles.row}>
               {SPEED_OPTIONS.map(o => (
                 <button
                   key={o}
-                  onClick={() => {
-                    const v = speed === o ? "" : o
-                    setSpeed(v)
-                    saveCurrentLabel(v, confidence)
-                  }}
+                  onClick={() =>
+                    setSpeed(prev => (prev === o ? "" : o))
+                  }
                   style={speed === o ? styles.active : styles.btn}
                 >
                   {o}
@@ -245,17 +260,16 @@ export default function App() {
             </div>
           </div>
 
+          {/* CONFIDENCE */}
           <div style={styles.optionGroup}>
             <h4>Confidence</h4>
             <div style={styles.row}>
               {CONF_OPTIONS.map(o => (
                 <button
                   key={o}
-                  onClick={() => {
-                    const v = confidence === o ? "" : o
-                    setConfidence(v)
-                    saveCurrentLabel(speed, v)
-                  }}
+                  onClick={() =>
+                    setConfidence(prev => (prev === o ? "" : o))
+                  }
                   style={confidence === o ? styles.active : styles.btn}
                 >
                   {o}
@@ -263,16 +277,16 @@ export default function App() {
               ))}
             </div>
           </div>
-
         </div>
 
+        {/* ACTIONS */}
         <div style={styles.controls}>
           <button onClick={replay} style={styles.secondary}>
-            Replay (R)
+            Replay
           </button>
 
           <button onClick={submit} style={styles.primary}>
-            Submit (Enter)
+            Submit
           </button>
         </div>
 
