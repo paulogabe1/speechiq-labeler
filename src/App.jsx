@@ -341,6 +341,8 @@ export default function App() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") confirmUser()
               }}
+              onFocus={(e) => (e.currentTarget.style.border = "1px solid #00d084")}
+              onBlur={(e) => (e.currentTarget.style.border = "1px solid #333")}
             />
 
             <div style={styles.modalActions}>
