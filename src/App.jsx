@@ -507,6 +507,7 @@ const styles = {
     background: "#111",
     border: "1px solid #333",
     color: "white",
-    borderRadius: 6
+    borderRadius: 6,
+    boxSizing: "border-box"
   }
 }
