@@ -3,8 +3,21 @@ import { useEffect, useRef, useState } from "react"
 const SPEED_OPTIONS = ["slow", "normal", "fast"]
 const CONF_OPTIONS = ["hesitant", "neutral", "confident"]
 
+const API_URL = "https://YOUR_WORKER_URL.workers.dev"
+
 export default function App() {
-  const [nickname] = useState(() => {
+  const audioRef = useRef(null)
+
+  // =========================
+  // DATA
+  // =========================
+  const [audioFiles, setAudioFiles] = useState([])
+  const [index, setIndex] = useState(0)
+
+  // =========================
+  // USER
+  // =========================
+  const [nickname, setNickname] = useState(() => {
     let n = localStorage.getItem("speechiq-nickname")
 
     if (!n) {
@@ -16,21 +29,16 @@ export default function App() {
     return n
   })
 
-  const API_URL = "https://speechiq-api.paulogabe1.workers.dev"
-
-  const audioRef = useRef(null)
-
-  const [audioFiles, setAudioFiles] = useState([])
-  const [index, setIndex] = useState(() => {
-    return Number(localStorage.getItem("speechiq-index")) || 0
-  })
-
-  const [labels, setLabels] = useState(() => {
-    return JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
-  })
-
+  // =========================
+  // LABEL STATE (local only for current session)
+  // =========================
   const [speed, setSpeed] = useState("")
   const [confidence, setConfidence] = useState("")
+
+  // =========================
+  // DB STATE
+  // =========================
+  const [progress, setProgress] = useState(0)
 
   // =========================
   // LOAD MANIFEST
@@ -44,12 +52,13 @@ export default function App() {
   const current = audioFiles[index]
 
   // =========================
-  // LOAD EXISTING LABEL
+  // LOAD LABEL FROM LOCAL CACHE (fallback only)
   // =========================
   useEffect(() => {
     if (!current) return
 
-    const existing = labels[current.filename]
+    const cache = JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
+    const existing = cache[current.filename]
 
     if (existing) {
       setSpeed(existing.speed || "")
@@ -58,60 +67,34 @@ export default function App() {
       setSpeed("")
       setConfidence("")
     }
-  }, [index, audioFiles])
+  }, [index, current])
 
   // =========================
-  // SAVE STATE
+  // FETCH PROGRESS FROM DB
   // =========================
-  useEffect(() => {
-    localStorage.setItem("speechiq-index", index)
-  }, [index])
+  const fetchProgress = async () => {
+    if (!nickname) return
 
-  useEffect(() => {
-    localStorage.setItem("speechiq-labels", JSON.stringify(labels))
-  }, [labels])
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "progress",
+          nickname
+        })
+      })
 
-  // =========================
-  // KEYBOARD SHORTCUTS
-  // =========================
-  useEffect(() => {
-    const handler = (e) => {
-      if (document.activeElement.tagName === "INPUT") return
-
-      switch (e.key.toLowerCase()) {
-        case "s":
-          setSpeed("slow")
-          break
-        case "n":
-          setSpeed("normal")
-          break
-        case "f":
-          setSpeed("fast")
-          break
-
-        case "h":
-          setConfidence("hesitant")
-          break
-        case "m":
-          setConfidence("neutral")
-          break
-        case "c":
-          setConfidence("confident")
-          break
-
-        case "r":
-          replay()
-          break
-
-        case "enter":
-          submit()
-          break
-      }
+      const data = await res.json()
+      setProgress(data.progress || 0)
+    } catch (err) {
+      console.error("progress fetch failed", err)
     }
+  }
 
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [speed, confidence, index, labels])
+  useEffect(() => {
+    fetchProgress()
+  }, [nickname])
 
   // =========================
   // ACTIONS
@@ -122,70 +105,44 @@ export default function App() {
     audioRef.current.play()
   }
 
-  const saveCurrentLabel = (
-    newSpeed = speed,
-    newConfidence = confidence
-  ) => {
-    if (!current) return
+  const saveToLocalCache = (file, s, c) => {
+    const cache = JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
 
-    const updated = { ...labels }
+    cache[file] = { speed: s, confidence: c }
 
-    // completely empty -> remove entry
-    if (!newSpeed && !newConfidence) {
-      delete updated[current.filename]
-    } else {
-      updated[current.filename] = {
-        speed: newSpeed,
-        confidence: newConfidence
-      }
-    }
-
-    setLabels(updated)
-  }
-
-  const getLabelState = (file) => {
-    const label = labels[file.filename]
-
-    if (!label) return "empty"
-
-    const hasSpeed = !!label.speed
-    const hasConfidence = !!label.confidence
-
-    if (hasSpeed && hasConfidence) return "complete"
-
-    return "partial"
+    localStorage.setItem("speechiq-labels", JSON.stringify(cache))
   }
 
   const submit = async () => {
-
-    if (!speed || !confidence) {
-      alert("Warning: clip is incomplete")
-    }
-
     if (!current) return
 
-    // 1. Save locally (keep your system working offline)
-    saveCurrentLabel(speed, confidence)
+    if (!speed || !confidence) {
+      alert("Warning: incomplete label")
+    }
+
+    // save locally (instant UX)
+    saveToLocalCache(current.filename, speed, confidence)
 
     try {
-      // 2. Send to backend
       await fetch(API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "submit",
           nickname,
-          original_file: current.original || current.filename,
+          original_file: current.filename,
           speed,
           confidence
         })
       })
+
+      // refresh progress after submit
+      fetchProgress()
+
     } catch (err) {
-      console.error("Backend save failed:", err)
+      console.error("submit failed", err)
     }
 
-    // 3. Move to next clip
     if (index < audioFiles.length - 1) {
       setIndex(index + 1)
     }
@@ -197,33 +154,21 @@ export default function App() {
     }
   }
 
-  const exportCSV = () => {
-    const rows = [["original_file", "speed", "confidence"]]
-
-    Object.entries(labels).forEach(([file, val]) => {
-      const meta = audioFiles.find(f => f.filename === file)
-
-      rows.push([
-        meta?.original || file,
-        val.speed,
-        val.confidence
-      ])
-    })
-
-    const csv = rows.map(r => r.join(",")).join("\n")
-
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "speechiq_labels.csv"
-    a.click()
-
-    URL.revokeObjectURL(url)
+  const switchUser = () => {
+    localStorage.removeItem("speechiq-nickname")
+    window.location.reload()
   }
 
-  const progress = Object.keys(labels).length
+  const getLabelState = (file) => {
+    const cache = JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
+    const label = cache[file.filename]
+
+    if (!label) return "empty"
+
+    if (label.speed && label.confidence) return "complete"
+
+    return "partial"
+  }
 
   // =========================
   // UI
@@ -234,7 +179,13 @@ export default function App() {
 
         <h2>SpeechIQ Labeler</h2>
 
-        {/* NAVIGATOR */}
+        <p>User: <b>{nickname}</b></p>
+
+        <button onClick={switchUser} style={styles.secondary}>
+          Switch User
+        </button>
+
+        {/* NAV */}
         <div style={styles.navigator}>
           {audioFiles.map((f, i) => (
             <button
@@ -242,20 +193,14 @@ export default function App() {
               onClick={() => jumpTo(i)}
               style={{
                 ...styles.navBtn,
-
                 background:
                   getLabelState(f) === "complete"
                     ? "#00d084"
                     : getLabelState(f) === "partial"
                     ? "#e6b800"
                     : "#333",
-
-                border:
-                  i === index
-                    ? "2px solid white"
-                    : "2px solid transparent"
+                border: i === index ? "2px solid white" : "none"
               }}
-              title={f.filename}
             >
               {i + 1}
             </button>
@@ -263,17 +208,14 @@ export default function App() {
         </div>
 
         <p>
-          Clip {index + 1} / {audioFiles.length || 0}
+          Progress: {progress} / {audioFiles.length}
         </p>
 
-        {/* PROGRESS */}
         <div style={styles.barOuter}>
           <div
             style={{
               ...styles.barInner,
-              width: `${audioFiles.length
-                ? (progress / audioFiles.length) * 100
-                : 0}%`
+              width: `${audioFiles.length ? (progress / audioFiles.length) * 100 : 0}%`
             }}
           />
         </div>
@@ -281,36 +223,25 @@ export default function App() {
         {/* AUDIO */}
         {current && (
           <>
-            <h3>
-              {current.original.replace(".flac", "")}
-            </h3>
+            <h3>{current.original.replace(".flac", "")}</h3>
 
             <audio
               ref={audioRef}
               controls
-              autoPlay
               src={current.path}
               style={{ width: "100%" }}
             />
           </>
         )}
 
-        <div style={styles.labelPanel}>
-
         {/* SPEED */}
         <div style={styles.optionGroup}>
           <h4>Speed</h4>
-
           <div style={styles.row}>
             {SPEED_OPTIONS.map(o => (
               <button
                 key={o}
-                onClick={() => {
-                  const newValue = speed === o ? "" : o
-
-                  setSpeed(newValue)
-                  saveCurrentLabel(newValue, confidence)
-                }}
+                onClick={() => setSpeed(speed === o ? "" : o)}
                 style={speed === o ? styles.active : styles.btn}
               >
                 {o}
@@ -322,17 +253,11 @@ export default function App() {
         {/* CONFIDENCE */}
         <div style={styles.optionGroup}>
           <h4>Confidence</h4>
-
           <div style={styles.row}>
             {CONF_OPTIONS.map(o => (
               <button
                 key={o}
-                onClick={() => {
-                  const newValue = confidence === o ? "" : o
-
-                  setConfidence(newValue)
-                  saveCurrentLabel(speed, newValue)
-                }}
+                onClick={() => setConfidence(confidence === o ? "" : o)}
                 style={confidence === o ? styles.active : styles.btn}
               >
                 {o}
@@ -341,22 +266,16 @@ export default function App() {
           </div>
         </div>
 
-      </div>
-
         {/* CONTROLS */}
         <div style={styles.controls}>
           <button onClick={replay} style={styles.secondary}>
-            Replay (R)
+            Replay
           </button>
 
           <button onClick={submit} style={styles.primary}>
-            Submit (Enter)
+            Submit
           </button>
         </div>
-
-        <button onClick={exportCSV} style={styles.export}>
-          Export CSV
-        </button>
 
       </div>
     </div>
@@ -364,9 +283,8 @@ export default function App() {
 }
 
 // =========================
-// STYLES
+// STYLES (unchanged)
 // =========================
-
 const styles = {
   page: {
     minHeight: "100vh",
@@ -392,10 +310,9 @@ const styles = {
   navBtn: {
     width: 34,
     height: 34,
-    border: "none",
     color: "white",
-    cursor: "pointer",
-    borderRadius: 5
+    borderRadius: 5,
+    cursor: "pointer"
   },
   barOuter: {
     height: 10,
@@ -409,8 +326,7 @@ const styles = {
   },
   row: {
     display: "flex",
-    gap: 10,
-    marginBottom: 10
+    gap: 10
   },
   btn: {
     padding: 8,
@@ -439,34 +355,14 @@ const styles = {
     borderRadius: 6
   },
   secondary: {
-    flex: 1,
     padding: 10,
     background: "#444",
     border: "none",
     color: "white",
-    borderRadius: 6
-  },
-  export: {
-    marginTop: 15,
-    width: "100%",
-    padding: 10,
-    background: "#2196f3",
-    border: "none",
     borderRadius: 6,
-    color: "white"
+    marginBottom: 10
   },
-  labelPanel: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 20,
-    marginTop: 20,
-    marginBottom: 20
-  },
-
   optionGroup: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center"
-  },
+    marginTop: 15
+  }
 }
