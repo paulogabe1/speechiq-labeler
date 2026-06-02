@@ -153,6 +153,133 @@ export default function App() {
   // =========================
   // UI uses unchanged below
   // =========================
+  // =========================
+  // UI (UNCHANGED)
+  // =========================
+  return (
+    <div style={styles.page}>
+      <div style={styles.card}>
+
+        <h2>SpeechIQ Labeler</h2>
+
+        <p>User: {nickname}</p>
+
+        <button
+          onClick={() => {
+            localStorage.removeItem("speechiq-nickname")
+            window.location.reload()
+          }}
+        >
+          Switch User
+        </button>
+
+        <div style={styles.navigator}>
+          {audioFiles.map((f, i) => (
+            <button
+              key={f.filename}
+              onClick={() => jumpTo(i)}
+              style={{
+                ...styles.navBtn,
+                background:
+                  getLabelState(f) === "complete"
+                    ? "#00d084"
+                    : getLabelState(f) === "partial"
+                    ? "#e6b800"
+                    : "#333",
+                border:
+                  i === index ? "2px solid white" : "2px solid transparent"
+              }}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+
+        <p>
+          Clip {index + 1} / {audioFiles.length || 0}
+        </p>
+
+        <div style={styles.barOuter}>
+          <div
+            style={{
+              ...styles.barInner,
+              width: `${progressValue}%`
+            }}
+          />
+        </div>
+
+        {current && (
+          <>
+            <h3>
+              {current.original.replace(".flac", "")}
+            </h3>
+
+            <audio
+              ref={audioRef}
+              controls
+              autoPlay
+              src={current.path}
+              style={{ width: "100%" }}
+            />
+          </>
+        )}
+
+        <div style={styles.labelPanel}>
+
+          <div style={styles.optionGroup}>
+            <h4>Speed</h4>
+            <div style={styles.row}>
+              {SPEED_OPTIONS.map(o => (
+                <button
+                  key={o}
+                  onClick={() => {
+                    const v = speed === o ? "" : o
+                    setSpeed(v)
+                    saveCurrentLabel(v, confidence)
+                  }}
+                  style={speed === o ? styles.active : styles.btn}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={styles.optionGroup}>
+            <h4>Confidence</h4>
+            <div style={styles.row}>
+              {CONF_OPTIONS.map(o => (
+                <button
+                  key={o}
+                  onClick={() => {
+                    const v = confidence === o ? "" : o
+                    setConfidence(v)
+                    saveCurrentLabel(speed, v)
+                  }}
+                  style={confidence === o ? styles.active : styles.btn}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        <div style={styles.controls}>
+          <button onClick={replay} style={styles.secondary}>
+            Replay (R)
+          </button>
+
+          <button onClick={submit} style={styles.primary}>
+            Submit (Enter)
+          </button>
+        </div>
+
+      </div>
+    </div>
+  )
+}
 
 // =========================
 // STYLES
