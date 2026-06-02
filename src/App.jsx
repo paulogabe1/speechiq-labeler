@@ -322,19 +322,28 @@ export default function App() {
       </div>
 
       {showUserModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalBox}>
-
-            <h3>Set User</h3>
+        <div
+          style={styles.modalOverlay}
+          onMouseDown={cancelUserChange}
+        >
+          <div
+            style={styles.modalBox}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: 10 }}>Set User</h3>
 
             <input
+              autoFocus
               value={tempNickname}
               onChange={(e) => setTempNickname(e.target.value)}
               placeholder="Enter nickname"
               style={styles.input}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") confirmUser()
+              }}
             />
 
-            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+            <div style={styles.modalActions}>
               <button onClick={confirmUser} style={styles.primary}>
                 Confirm
               </button>
@@ -345,11 +354,10 @@ export default function App() {
             </div>
 
             {!nickname && (
-              <p style={{ color: "orange", marginTop: 10 }}>
+              <p style={{ color: "#ffb347", marginTop: 10, fontSize: 13 }}>
                 You must enter a name to continue
               </p>
             )}
-
           </div>
         </div>
       )}
@@ -484,30 +492,60 @@ const styles = {
     left: 0,
     width: "100vw",
     height: "100vh",
-    background: "rgba(0,0,0,0.7)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 9999
+    background: "rgba(0,0,0,0.4)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
+    zIndex: 9999,
+    animation: "fadeIn 0.15s ease-out"
   },
 
   modalBox: {
-    width: 320,
+    width: 340,
     background: "#1c1c1c",
     padding: 20,
-    borderRadius: 10,
+    borderRadius: 12,
     border: "1px solid #333",
-    textAlign: "center"
+    textAlign: "center",
+    transform: "scale(0.98)",
+    animation: "popIn 0.15s ease-out",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
   },
 
   input: {
     width: "100%",
-    padding: 10,
+    padding: 12,
     marginTop: 10,
     background: "#111",
     border: "1px solid #333",
     color: "white",
-    borderRadius: 6,
-    boxSizing: "border-box"
+    borderRadius: 8,
+    boxSizing: "border-box",
+    fontSize: 14,
+    outline: "none"
+  },
+
+    modalActions: {
+    display: "flex",
+    gap: 10,
+    marginTop: 15
+  },
+
+  "@keyframes fadeIn": {
+    from: { opacity: 0 },
+    to: { opacity: 1 }
+  },
+
+  "@keyframes popIn": {
+    from: {
+      transform: "scale(0.95)",
+      opacity: 0
+    },
+    to: {
+      transform: "scale(1)",
+      opacity: 1
+    }
   }
 }
