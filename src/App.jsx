@@ -297,3 +297,111 @@ export default function App() {
     </div>
   )
 }
+
+// =========================
+// STYLES
+// =========================
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#111",
+    color: "white",
+    display: "flex",
+    justifyContent: "center",
+    padding: 20,
+    fontFamily: "Arial"
+  },
+  card: {
+    width: 850,
+    background: "#1c1c1c",
+    padding: 20,
+    borderRadius: 12
+  },
+  navigator: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 5,
+    marginBottom: 15
+  },
+  navBtn: {
+    width: 34,
+    height: 34,
+    border: "none",
+    color: "white",
+    cursor: "pointer",
+    borderRadius: 5
+  },
+  barOuter: {
+    height: 10,
+    background: "#333",
+    borderRadius: 10,
+    marginBottom: 15
+  },
+  barInner: {
+    height: "100%",
+    background: "#00d084"
+  },
+  row: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 10
+  },
+  btn: {
+    padding: 8,
+    background: "#333",
+    border: "none",
+    color: "white",
+    borderRadius: 6
+  },
+  active: {
+    padding: 8,
+    background: "#00d084",
+    border: "none",
+    color: "black",
+    borderRadius: 6
+  },
+  controls: {
+    display: "flex",
+    gap: 10,
+    marginTop: 15
+  },
+  primary: {
+    flex: 1,
+    padding: 10,
+    background: "#00d084",
+    border: "none",
+    borderRadius: 6
+  },
+  secondary: {
+    flex: 1,
+    padding: 10,
+    background: "#444",
+    border: "none",
+    color: "white",
+    borderRadius: 6
+  },
+  export: {
+    marginTop: 15,
+    width: "100%",
+    padding: 10,
+    background: "#2196f3",
+    border: "none",
+    borderRadius: 6,
+    color: "white"
+  },
+  labelPanel: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 20,
+    marginTop: 20,
+    marginBottom: 20
+  },
+
+  optionGroup: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center"
+  },
+}
