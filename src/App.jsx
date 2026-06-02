@@ -200,6 +200,13 @@ export default function App() {
             localStorage.removeItem("speechiq-nickname")
             window.location.reload()
           }}
+          style={styles.switchUser}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = "#3a3a3a")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = "#2a2a2a")
+          }
         >
           Switch User
         </button>
@@ -412,4 +419,17 @@ const styles = {
     flexDirection: "column",
     alignItems: "center"
   },
+
+  switchUser: {
+    marginTop: 10,
+    marginBottom: 15,
+    padding: "8px 12px",
+    background: "#2a2a2a",
+    color: "#fff",
+    border: "1px solid #444",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontSize: 13,
+    transition: "0.2s",
+  }
 }
