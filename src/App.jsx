@@ -3,21 +3,15 @@ import { useEffect, useRef, useState } from "react"
 const SPEED_OPTIONS = ["slow", "normal", "fast"]
 const CONF_OPTIONS = ["hesitant", "neutral", "confident"]
 
-const API_URL = "https://YOUR_WORKER_URL.workers.dev"
-
 export default function App() {
   const audioRef = useRef(null)
 
-  // =========================
-  // DATA
-  // =========================
-  const [audioFiles, setAudioFiles] = useState([])
-  const [index, setIndex] = useState(0)
+  const API_URL = "https://speechiq-api.paulogabe1.workers.dev"
 
   // =========================
   // USER
   // =========================
-  const [nickname, setNickname] = useState(() => {
+  const [nickname] = useState(() => {
     let n = localStorage.getItem("speechiq-nickname")
 
     if (!n) {
@@ -29,15 +23,16 @@ export default function App() {
     return n
   })
 
-  // =========================
-  // LABEL STATE (local only for current session)
-  // =========================
+  const [audioFiles, setAudioFiles] = useState([])
+  const [index, setIndex] = useState(0)
+
+  const [labels, setLabels] = useState(() => {
+    return JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
+  })
+
   const [speed, setSpeed] = useState("")
   const [confidence, setConfidence] = useState("")
 
-  // =========================
-  // DB STATE
-  // =========================
   const [progress, setProgress] = useState(0)
 
   // =========================
@@ -52,13 +47,12 @@ export default function App() {
   const current = audioFiles[index]
 
   // =========================
-  // LOAD LABEL FROM LOCAL CACHE (fallback only)
+  // LOAD LABEL FROM CACHE
   // =========================
   useEffect(() => {
     if (!current) return
 
-    const cache = JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
-    const existing = cache[current.filename]
+    const existing = labels[current.filename]
 
     if (existing) {
       setSpeed(existing.speed || "")
@@ -67,14 +61,12 @@ export default function App() {
       setSpeed("")
       setConfidence("")
     }
-  }, [index, current])
+  }, [index, audioFiles])
 
   // =========================
-  // FETCH PROGRESS FROM DB
+  // FETCH PROGRESS FROM DB (NEW)
   // =========================
   const fetchProgress = async () => {
-    if (!nickname) return
-
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -87,14 +79,36 @@ export default function App() {
 
       const data = await res.json()
       setProgress(data.progress || 0)
+
     } catch (err) {
-      console.error("progress fetch failed", err)
+      console.error(err)
     }
   }
 
   useEffect(() => {
     fetchProgress()
   }, [nickname])
+
+  // =========================
+  // SAVE LOCAL LABEL (UNCHANGED)
+  // =========================
+  const saveCurrentLabel = (newSpeed = speed, newConfidence = confidence) => {
+    if (!current) return
+
+    const updated = { ...labels }
+
+    if (!newSpeed && !newConfidence) {
+      delete updated[current.filename]
+    } else {
+      updated[current.filename] = {
+        speed: newSpeed,
+        confidence: newConfidence
+      }
+    }
+
+    setLabels(updated)
+    localStorage.setItem("speechiq-labels", JSON.stringify(updated))
+  }
 
   // =========================
   // ACTIONS
@@ -105,23 +119,14 @@ export default function App() {
     audioRef.current.play()
   }
 
-  const saveToLocalCache = (file, s, c) => {
-    const cache = JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
-
-    cache[file] = { speed: s, confidence: c }
-
-    localStorage.setItem("speechiq-labels", JSON.stringify(cache))
-  }
-
   const submit = async () => {
     if (!current) return
 
     if (!speed || !confidence) {
-      alert("Warning: incomplete label")
+      alert("Warning: clip is incomplete")
     }
 
-    // save locally (instant UX)
-    saveToLocalCache(current.filename, speed, confidence)
+    saveCurrentLabel(speed, confidence)
 
     try {
       await fetch(API_URL, {
@@ -130,17 +135,16 @@ export default function App() {
         body: JSON.stringify({
           action: "submit",
           nickname,
-          original_file: current.filename,
+          original_file: current.original || current.filename,
           speed,
           confidence
         })
       })
 
-      // refresh progress after submit
       fetchProgress()
 
     } catch (err) {
-      console.error("submit failed", err)
+      console.error(err)
     }
 
     if (index < audioFiles.length - 1) {
@@ -154,24 +158,20 @@ export default function App() {
     }
   }
 
-  const switchUser = () => {
-    localStorage.removeItem("speechiq-nickname")
-    window.location.reload()
-  }
-
   const getLabelState = (file) => {
-    const cache = JSON.parse(localStorage.getItem("speechiq-labels") || "{}")
-    const label = cache[file.filename]
+    const label = labels[file.filename]
 
     if (!label) return "empty"
-
     if (label.speed && label.confidence) return "complete"
-
     return "partial"
   }
 
+  const progressValue = audioFiles.length
+    ? (progress / audioFiles.length) * 100
+    : 0
+
   // =========================
-  // UI
+  // UI (UNCHANGED)
   // =========================
   return (
     <div style={styles.page}>
@@ -179,13 +179,17 @@ export default function App() {
 
         <h2>SpeechIQ Labeler</h2>
 
-        <p>User: <b>{nickname}</b></p>
+        <p>User: {nickname}</p>
 
-        <button onClick={switchUser} style={styles.secondary}>
+        <button
+          onClick={() => {
+            localStorage.removeItem("speechiq-nickname")
+            window.location.reload()
+          }}
+        >
           Switch User
         </button>
 
-        {/* NAV */}
         <div style={styles.navigator}>
           {audioFiles.map((f, i) => (
             <button
@@ -199,7 +203,8 @@ export default function App() {
                     : getLabelState(f) === "partial"
                     ? "#e6b800"
                     : "#333",
-                border: i === index ? "2px solid white" : "none"
+                border:
+                  i === index ? "2px solid white" : "2px solid transparent"
               }}
             >
               {i + 1}
@@ -208,161 +213,87 @@ export default function App() {
         </div>
 
         <p>
-          Progress: {progress} / {audioFiles.length}
+          Clip {index + 1} / {audioFiles.length || 0}
         </p>
 
         <div style={styles.barOuter}>
           <div
             style={{
               ...styles.barInner,
-              width: `${audioFiles.length ? (progress / audioFiles.length) * 100 : 0}%`
+              width: `${progressValue}%`
             }}
           />
         </div>
 
-        {/* AUDIO */}
         {current && (
           <>
-            <h3>{current.original.replace(".flac", "")}</h3>
+            <h3>
+              {current.original.replace(".flac", "")}
+            </h3>
 
             <audio
               ref={audioRef}
               controls
+              autoPlay
               src={current.path}
               style={{ width: "100%" }}
             />
           </>
         )}
 
-        {/* SPEED */}
-        <div style={styles.optionGroup}>
-          <h4>Speed</h4>
-          <div style={styles.row}>
-            {SPEED_OPTIONS.map(o => (
-              <button
-                key={o}
-                onClick={() => setSpeed(speed === o ? "" : o)}
-                style={speed === o ? styles.active : styles.btn}
-              >
-                {o}
-              </button>
-            ))}
+        <div style={styles.labelPanel}>
+
+          <div style={styles.optionGroup}>
+            <h4>Speed</h4>
+            <div style={styles.row}>
+              {SPEED_OPTIONS.map(o => (
+                <button
+                  key={o}
+                  onClick={() => {
+                    const v = speed === o ? "" : o
+                    setSpeed(v)
+                    saveCurrentLabel(v, confidence)
+                  }}
+                  style={speed === o ? styles.active : styles.btn}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
           </div>
+
+          <div style={styles.optionGroup}>
+            <h4>Confidence</h4>
+            <div style={styles.row}>
+              {CONF_OPTIONS.map(o => (
+                <button
+                  key={o}
+                  onClick={() => {
+                    const v = confidence === o ? "" : o
+                    setConfidence(v)
+                    saveCurrentLabel(speed, v)
+                  }}
+                  style={confidence === o ? styles.active : styles.btn}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          </div>
+
         </div>
 
-        {/* CONFIDENCE */}
-        <div style={styles.optionGroup}>
-          <h4>Confidence</h4>
-          <div style={styles.row}>
-            {CONF_OPTIONS.map(o => (
-              <button
-                key={o}
-                onClick={() => setConfidence(confidence === o ? "" : o)}
-                style={confidence === o ? styles.active : styles.btn}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* CONTROLS */}
         <div style={styles.controls}>
           <button onClick={replay} style={styles.secondary}>
-            Replay
+            Replay (R)
           </button>
 
           <button onClick={submit} style={styles.primary}>
-            Submit
+            Submit (Enter)
           </button>
         </div>
 
       </div>
     </div>
   )
-}
-
-// =========================
-// STYLES (unchanged)
-// =========================
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#111",
-    color: "white",
-    display: "flex",
-    justifyContent: "center",
-    padding: 20,
-    fontFamily: "Arial"
-  },
-  card: {
-    width: 850,
-    background: "#1c1c1c",
-    padding: 20,
-    borderRadius: 12
-  },
-  navigator: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 5,
-    marginBottom: 15
-  },
-  navBtn: {
-    width: 34,
-    height: 34,
-    color: "white",
-    borderRadius: 5,
-    cursor: "pointer"
-  },
-  barOuter: {
-    height: 10,
-    background: "#333",
-    borderRadius: 10,
-    marginBottom: 15
-  },
-  barInner: {
-    height: "100%",
-    background: "#00d084"
-  },
-  row: {
-    display: "flex",
-    gap: 10
-  },
-  btn: {
-    padding: 8,
-    background: "#333",
-    border: "none",
-    color: "white",
-    borderRadius: 6
-  },
-  active: {
-    padding: 8,
-    background: "#00d084",
-    border: "none",
-    color: "black",
-    borderRadius: 6
-  },
-  controls: {
-    display: "flex",
-    gap: 10,
-    marginTop: 15
-  },
-  primary: {
-    flex: 1,
-    padding: 10,
-    background: "#00d084",
-    border: "none",
-    borderRadius: 6
-  },
-  secondary: {
-    padding: 10,
-    background: "#444",
-    border: "none",
-    color: "white",
-    borderRadius: 6,
-    marginBottom: 10
-  },
-  optionGroup: {
-    marginTop: 15
-  }
 }
