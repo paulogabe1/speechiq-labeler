@@ -383,9 +383,9 @@ const styles = {
     fontFamily: "Arial"
   },
   card: {
-    width: 850,
+    width: 1050,
     background: "#1c1c1c",
-    padding: 0,
+    padding: 20,
     borderRadius: 12
   },
   navigator: {
