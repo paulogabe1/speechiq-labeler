@@ -396,8 +396,8 @@ const styles = {
     marginBottom: 15
   },
   navBtn: {
-    width: 54,
-    height: 54,
+    width: 34,
+    height: 34,
     border: "none",
     color: "white",
     cursor: "pointer",
@@ -423,7 +423,8 @@ const styles = {
     background: "#333",
     border: "none",
     color: "white",
-    borderRadius: 6
+    borderRadius: 6,
+    fontSize: 20
   },
   active: {
     padding: 8,
