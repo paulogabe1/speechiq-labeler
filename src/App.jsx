@@ -382,7 +382,6 @@ const styles = {
     justifyContent: "center",
     padding: 20,
     fontFamily: "Arial",
-    fontSize: 20
   },
   card: {
     //width: 850,
@@ -402,7 +401,8 @@ const styles = {
     border: "none",
     color: "white",
     cursor: "pointer",
-    borderRadius: 5
+    borderRadius: 5,
+    fontSize: 15,
   },
   barOuter: {
     height: 10,
@@ -425,6 +425,7 @@ const styles = {
     border: "none",
     color: "white",
     borderRadius: 6,
+    fontSize: 15,
   },
   active: {
     padding: 8,
