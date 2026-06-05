@@ -379,11 +379,11 @@ const styles = {
     color: "white",
     display: "flex",
     justifyContent: "center",
-    padding: 0,
+    padding: 20,
     fontFamily: "Arial"
   },
   card: {
-    width: 1050,
+    //width: 850,
     background: "#1c1c1c",
     padding: 20,
     borderRadius: 12
