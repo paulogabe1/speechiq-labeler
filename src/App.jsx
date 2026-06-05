@@ -385,7 +385,7 @@ const styles = {
   card: {
     width: 850,
     background: "#1c1c1c",
-    padding: 20,
+    padding: 0,
     borderRadius: 12
   },
   navigator: {
