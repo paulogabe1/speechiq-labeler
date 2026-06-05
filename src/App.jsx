@@ -402,7 +402,7 @@ const styles = {
     color: "white",
     cursor: "pointer",
     borderRadius: 5,
-    fontSize: 14,
+    fontSize: 12,
   },
   barOuter: {
     height: 10,
