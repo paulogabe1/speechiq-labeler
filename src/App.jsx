@@ -375,7 +375,7 @@ export default function App() {
 const styles = {
   page: {
     minHeight: "60vh",
-    zoom: 1.5,
+    zoom: 1.2,
     background: "#111",
     color: "white",
     display: "flex",
