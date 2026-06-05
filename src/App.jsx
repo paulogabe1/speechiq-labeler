@@ -196,7 +196,7 @@ export default function App() {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <h2>Loading SpeechIQ...</h2>
+          <h2>Loading Labeler...</h2>
         </div>
       </div>
     )
@@ -209,7 +209,7 @@ export default function App() {
     <div style={styles.page}>
       <div style={styles.card}>
 
-        <h2>SpeechIQ Labeler</h2>
+        <h2>Labeler</h2>
         <p>User: {nickname}</p>
 
         <button
@@ -402,7 +402,7 @@ const styles = {
     color: "white",
     cursor: "pointer",
     borderRadius: 5,
-    fontSize: 12,
+    fontSize: 13,
   },
   barOuter: {
     height: 10,
