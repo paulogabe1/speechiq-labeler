@@ -379,7 +379,7 @@ const styles = {
     color: "white",
     display: "flex",
     justifyContent: "center",
-    padding: 20,
+    padding: 0,
     fontFamily: "Arial"
   },
   card: {
