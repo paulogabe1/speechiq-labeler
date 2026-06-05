@@ -375,13 +375,14 @@ export default function App() {
 const styles = {
   page: {
     minHeight: "60vh",
-    zoom: 1.2,
+    //zoom: 1.2,
     background: "#111",
     color: "white",
     display: "flex",
     justifyContent: "center",
     padding: 20,
-    fontFamily: "Arial"
+    fontFamily: "Arial",
+    fontSize: 20
   },
   card: {
     //width: 850,
@@ -424,7 +425,6 @@ const styles = {
     border: "none",
     color: "white",
     borderRadius: 6,
-    fontSize: 20
   },
   active: {
     padding: 8,
